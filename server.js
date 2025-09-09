@@ -1,27 +1,50 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const routes = require('./routes');
-const path = require('path');
+const User = require('./models/User');
 
 const app = express();
-
-// Middleware
 app.use(express.json());
 
-// Serve static HTML/CSS/JS from "public"
-app.use(express.static(path.join(__dirname, 'public')));
+// Use environment variable from Render or Atlas
+const MONGO_URI = process.env.MONGO_URI;
 
-// MongoDB connection
-mongoose.connect('mongodb://localhost:27017/mydatabase', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.error(err));
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI not set. Please add it as an environment variable.");
+  process.exit(1);
+}
 
-// API Routes
-app.use('/users', routes);
+// Connect to MongoDB with retry logic
+const connectWithRetry = () => {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log('✅ MongoDB connected'))
+    .catch(err => {
+      console.error('❌ MongoDB connection error:', err.message);
+      setTimeout(connectWithRetry, 5000); // retry after 5s
+    });
+};
+connectWithRetry();
 
-// Start server
+// Routes
+app.get('/', (req, res) => {
+  res.send('Hello from Node.js + MongoDB + Render 🚀');
+});
+
+app.post('/users', async (req, res) => {
+  try {
+    const user = await User.create(req.body);
+    res.status(201).json(user);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/users', async (req, res) => {
+  const users = await User.find();
+  res.json(users);
+});
+
+// Render expects PORT env variable
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
