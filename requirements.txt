@@ -1,3 +1,4 @@
 Flask==2.3.3
-pymongo==5.3.0
+pymongo==5.2.0
 Werkzeug==2.3.6
+gunicorn==21.2.0
